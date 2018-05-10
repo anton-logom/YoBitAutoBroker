@@ -2,32 +2,34 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
 import os, time, json, requests
-from py_linq import Enumerable
 
 options = webdriver.ChromeOptions()
 
 # НАСТРОЙКИ
-currency1 = 'liza'
-currency2 = 'usd'
+currency1 = 'liza'  # валюта, которую будем покупать и продавать
+currency2 = 'usd'   # исходная валюта для вложений в первую валюту (обычно usd)
+action = 0          # Режим работы: 1 = постоянная автоматическая, 0 = ручное включение каждой итерации
 
 # Windows
-# chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
-# profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
-# options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
+chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
+profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
+options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
 
-# MacOS
-chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
-chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
-options.add_argument(chrome_cache_path)
+# # MacOS
+# chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
+# chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
+# options.add_argument(chrome_cache_path)
 
 
 def get_price():
     result = requests.get("https://yobit.net/api/3/ticker/" + currency1 + "_" + currency2)
     temp_data = json.loads(result.text)
     data = dict()
-    data['time'] = time.ctime()
-    data['buy'] = temp_data['liza_usd']['sell']
-    data['sell'] = temp_data['liza_usd']['buy']
+    data['time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()))
+    data['buy'] = temp_data[currency1 + "_" + currency2]['sell']
+    data['sell'] = temp_data[currency1 + "_" + currency2]['buy']
+    data['currency'] = currency1
+    print('Текущие курсы валюты ' + currency1 + ' - покупка: ' + str(data['buy']) + ' продажа:' + str(data['sell']))
     save_price(data)
     return data
 
@@ -51,6 +53,7 @@ def buy_click(total_price=0.10000001, price=0, quantity=0.0001):
     # button.click()
     print("Куплено!")
 
+
 def sell_click(quantity=0, price=0):
     driver.get("https://www.yobit.net/ru/trade/" + currency1.upper() + "/" + currency2.upper())
     time.sleep(1)
@@ -68,6 +71,7 @@ def sell_click(quantity=0, price=0):
     # button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/input[3]')
     # button.click()
     print("Продано!")
+
 
 def get_current_balance(curr):
     time.sleep(0.5)
@@ -91,7 +95,7 @@ def save_json(action, currency, quantity, price):
         'currency': currency,
         'quantity': quantity,
         'price': price,
-        'time': time.ctime()
+        'time': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()))
     })
     with open(action+'.json', 'a+', encoding='utf-8') as f:
         f.seek(0, 2)
@@ -155,10 +159,12 @@ def start_broker():
             sell_price = get_price()['sell']
             time.sleep(6)
         sell_click()
-    action = int(input("Итерация брокера окончена. Начать следующую? \n0 - нет\nдругое число - да\n"))
-    # action = 1 # Включение постоянной работы
+
     if action:
         start_broker()
+    else:
+        if int(input("Итерация брокера окончена. Начать следующую? 0 = нет, 1 = да")):
+            start_broker()
 
 
 if __name__ == '__main__':
@@ -169,9 +175,11 @@ if __name__ == '__main__':
     time.sleep(1)
     try:
         if driver.find_element_by_xpath('/html/body/div[1]/header/div/div[2]/ul[1]/li[2]/a').text == 'Войти':
-            print('Отсутствует аутентификация на сайте!')
+            print('Отсутствует аутентификация на сайте! Авторизуйтесь и перезапустите программу.')
     except NoSuchElementException:
+        print('Авторизация проверена')
         start_broker()
     driver.close()
     print("Работа окончена.")
+    input()
 

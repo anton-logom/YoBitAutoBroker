@@ -27,7 +27,8 @@ def db_clear():
                            db=mysql_config.db)
     c = conn.cursor()
 
-    # PUT YOUR CODE HERE
+    c.execute('TRUNCATE `price`')
+    c.execute('TRUNCATE `operations`')
 
     conn.commit()
     c.close()
@@ -35,59 +36,61 @@ def db_clear():
     print('БД очищена.')
 
 
-def insert_into_buy(lst_put):
-    start_time = time.time()
-    conn = MySQLdb.connect(host=mysql_config.Host,
-                           port=mysql_config.Port,
-                           user=mysql_config.username,
-                           passwd=mysql_config.password,
-                           charset="utf8",
-                           db=mysql_config.db)
-    conn.autocommit(True)
+def insert_into_buy(lst_put, conn):
+    c = conn.cursor()
+    c.execute("SELECT `id` FROM `operations` WHERE `action` = 'buy'")
+    lastdb = c.rowcount
+    if lastdb:
+        lst_put = lst_put[lastdb + 1:]
+    c.close()
+    c = conn.cursor()
+    try:
+        c.executemany("""
+                INSERT INTO operations (`currency`, `action`, `time`, `price`, `quantity`) VALUES (%(currency)s, 'buy', %(time)s, %(price)s, %(quantity)s)
+                """, lst_put)
+        print(str(c.rowcount) + " новых покупок добавлено в БД")
+
+    except MySQLdb.DatabaseError:
+        print('Проблема при записи в БД: покупок не записаны')
+    c.close()
+
+
+def insert_into_prices(lst_put, conn):
+    c = conn.cursor()
+    c.execute('SELECT max(`id`) FROM price')
+    lastdb = c.fetchone()[0]
+    if lastdb:
+        lst_put = lst_put[lastdb + 1:]
+    c.close()
+    c = conn.cursor()
+    try:
+        c.executemany("""
+        INSERT INTO price (`time`, `currency`, `buy`, `sell`) VALUES (%(time)s, %(currency)s, %(buy)s, %(sell)s)
+        """, lst_put)
+        print(str(c.rowcount) + " новых данных о курсе добавлено в БД")
+    except MySQLdb.DatabaseError:
+        print('Проблема при записи в БД: курсы валют не записаны')
+    c.close()
+
+
+def insert_into_sell(lst_put, conn):
     c = conn.cursor()
 
-    # PUT YOU CODE HERE FOR INSERT INTO TABLE BUY
-
+    c.execute("SELECT `id` FROM `operations` WHERE `action` = 'sell'")
+    lastdb = c.rowcount
+    if lastdb:
+        lst_put = lst_put[lastdb + 1:]
     c.close()
-    conn.close()
-    print("Время записи составило: %s сек" % (time.time() - start_time))
-
-
-def insert_into_prices(lst_put):
-    start_time = time.time()
-    conn = MySQLdb.connect(host=mysql_config.Host,
-                           port=mysql_config.Port,
-                           user=mysql_config.username,
-                           passwd=mysql_config.password,
-                           charset="utf8",
-                           db=mysql_config.db)
-    conn.autocommit(True)
     c = conn.cursor()
+    try:
+        c.executemany("""
+            INSERT INTO operations (`currency`, `action`, `time`, `price`, `quantity`) VALUES (%(currency)s, 'sell', %(time)s, %(price)s, %(quantity)s)
+            """, lst_put)
+        print(str(c.rowcount) + " новых продаж добавлено в БД")
 
-    # PUT YOU CODE HERE FOR INSERT INTO TABLE PRICES
-
+    except MySQLdb.DatabaseError:
+        print('Проблема при записи в БД: продажи не записаны')
     c.close()
-    conn.close()
-    print("Время записи составило: %s сек" % (time.time() - start_time))
-
-
-def insert_into_sell(lst_put):
-    start_time = time.time()
-    conn = MySQLdb.connect(host=mysql_config.Host,
-                           port=mysql_config.Port,
-                           user=mysql_config.username,
-                           passwd=mysql_config.password,
-                           charset="utf8",
-                           db=mysql_config.db)
-    conn.autocommit(True)
-    c = conn.cursor()
-
-    # PUT YOU CODE HERE FOR INSERT INTO TABLE SELL
-
-    c.close()
-    conn.close()
-    print("Время записи составило: %s сек" % (time.time() - start_time))
-
 
 while __name__ == '__main__':
     if clear:
@@ -106,15 +109,26 @@ while __name__ == '__main__':
         time.sleep(1)
 
     print('json-файл обновлён, начинаем запись в БД...')
-    if old_sha1_price == new_sha1_price:
-        list_put = load_from_json(buy_file)
-        insert_into_prices(list_put)
-    elif old_sha1_buy != new_sha1_buy:
-        list_put = load_from_json(sell_file)
-        insert_into_buy(list_put)
-    elif old_sha1_sell != new_sha1_sell:
+    start_time = time.time()
+    conn = MySQLdb.connect(host=mysql_config.Host,
+                           port=mysql_config.Port,
+                           user=mysql_config.username,
+                           passwd=mysql_config.password,
+                           charset="utf8",
+                           db=mysql_config.db)
+    conn.autocommit(True)
+    if old_sha1_price != new_sha1_price:
         list_put = load_from_json(price_file)
-        insert_into_sell(list_put)
+        insert_into_prices(list_put, conn)
+    if old_sha1_buy != new_sha1_buy:
+        list_put = load_from_json(buy_file)
+        insert_into_buy(list_put, conn)
+    if old_sha1_sell != new_sha1_sell:
+        list_put = load_from_json(sell_file)
+        insert_into_sell(list_put, conn)
+    print("Этап записи завершен, время записи составило: %s сек" % (time.time() - start_time))
+    conn.close()
+
 
 
 
