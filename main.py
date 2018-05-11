@@ -185,18 +185,22 @@ def start_broker():
     buy_history = float(buy_list[len(buy_list) - num_of_deal]['quantity'])
     average_price = float(buy_list[len(buy_list) - num_of_deal]['price'])
     average_price += round(average_price * 0.002, 8) # Комиссия 0.2%
+    average_price = round(average_price, 8)
     while int(current_balance) != int(buy_history):
         num_of_deal += 1
         buy_history += float(buy_list[len(buy_list) - num_of_deal]['quantity'])
         average_price = (average_price + float(buy_list[len(buy_list) - num_of_deal]['price']))/2
         average_price += round(average_price * 0.002, 8) # Комиссия 0.2%
+        average_price = round(average_price, 8)
     sell_price = get_price()['sell']
     sell_price -= round(sell_price * 0.002, 8)
+    sell_price = round(sell_price, 8)
     while num_of_deal < 5:
         start_check_price_time = time.time()
         while sell_price < average_price:
             sell_price = get_price()['sell']
             sell_price -= round(sell_price * 0.002, 8)
+            sell_price = round(sell_price, 8)
             time.sleep(6)
             if (time.time() - start_check_price_time) > 59:
                 break
@@ -209,10 +213,12 @@ def start_broker():
             num_of_deal += 1
             average_price = (average_price + float(buy_list[len(buy_list) - 1]['price']))/2
             average_price += round(average_price * 0.002, 8)
+            average_price = round(average_price, 8)
     if get_current_balance(currency1) != 200:
         while sell_price < average_price:
             sell_price = get_price()['sell']
             sell_price -= round(sell_price * 0.002, 8)
+            sell_price = round(sell_price, 8)
             time.sleep(6)
         sell_click()
 
