@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
 import os, time, json, requests
+from py_linq import Enumerable
 
 options = webdriver.ChromeOptions()
 
@@ -11,14 +12,14 @@ currency2 = 'usd'   # исходная валюта для вложений в �
 action = 0          # Режим работы: 1 = постоянная автоматическая, 0 = ручное включение каждой итерации
 
 # Windows
-chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
-profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
-options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
+# chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
+# profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
+# options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
 
-# # MacOS
-# chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
-# chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
-# options.add_argument(chrome_cache_path)
+# MacOS
+chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"  # путь до драйвера Chrome
+chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/" # Директория кэша Chrome
+options.add_argument(chrome_cache_path)
 
 
 def get_price():
@@ -51,6 +52,11 @@ def buy_click(total_price=0.10000001, price=0, quantity=0.0001):
 
     # button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/input[3]')
     # button.click()
+    time.sleep(5)
+    check = check_order()
+    while not check:
+        buy_click()
+        check = check_order()
     print("Куплено!")
 
 
@@ -70,7 +76,28 @@ def sell_click(quantity=0, price=0):
 
     # button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/input[3]')
     # button.click()
+    time.sleep(5)
+    check = check_order()
+    while not check:
+        sell_click()
+        check = check_order()
     print("Продано!")
+
+
+def check_order():
+    my_orders = driver.find_element_by_id('myord_table')
+    my_orders = my_orders.find_elements_by_class_name('green') + my_orders.find_elements_by_class_name('red')
+    if len(my_orders) == 0:
+        print("Ордер прошел успешно.")
+        return True
+    else:
+        my_orders = Enumerable(my_orders)
+        my_orders = my_orders.select(lambda x: x.get_attribute('id'))
+        my_orders = my_orders.to_list()
+        for order in my_orders:
+            driver.find_element_by_xpath('//*[@id="' + order +'"]/td[4]/table/tbody/tr/td[2]/a').click()
+        print("Ордер был удален. Повторите.")
+        return False
 
 
 def get_current_balance(curr):
@@ -162,9 +189,8 @@ def start_broker():
 
     if action:
         start_broker()
-    else:
-        if int(input("Итерация брокера окончена. Начать следующую? 0 = нет, 1 = да")):
-            start_broker()
+    elif int(input("Итерация брокера окончена. Начать следующую? 0 - нет, 1 - да")):
+        start_broker()
 
 
 if __name__ == '__main__':
@@ -181,5 +207,5 @@ if __name__ == '__main__':
         start_broker()
     driver.close()
     print("Работа окончена.")
-    input()
+    # input()
 
