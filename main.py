@@ -9,7 +9,7 @@ options = webdriver.ChromeOptions()
 # НАСТРОЙКИ
 currency1 = 'liza'  # валюта, которую будем покупать и продавать
 currency2 = 'usd'   # исходная валюта для вложений в первую валюту (обычно usd)
-action = 0          # Режим работы: 1 = постоянная автоматическая, 0 = ручное включение каждой итерации
+action = 1          # Режим работы: 1 = постоянная автоматическая, 0 = ручное включение каждой итерации
 
 # Windows
 # chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
@@ -23,13 +23,23 @@ options.add_argument(chrome_cache_path)
 
 
 def get_price():
-    result = requests.get("https://yobit.net/api/3/ticker/" + currency1 + "_" + currency2)
-    temp_data = json.loads(result.text)
-    data = dict()
-    data['time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()))
-    data['buy'] = temp_data[currency1 + "_" + currency2]['sell']
-    data['sell'] = temp_data[currency1 + "_" + currency2]['buy']
-    data['currency'] = currency1
+    try:
+        result = requests.get("https://yobit.net/api/3/ticker/" + currency1 + "_" + currency2)
+        temp_data = json.loads(result.text)
+        data = dict()
+        data['time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()))
+        data['buy'] = temp_data[currency1 + "_" + currency2]['sell']
+        data['sell'] = temp_data[currency1 + "_" + currency2]['buy']
+        data['currency'] = currency1
+    except Exception:
+        temp_data = load_json('price')
+        if len(temp_data) != 0:
+            data = temp_data[len(temp_data)-1]
+        else:
+            data['time'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()))
+            data['buy'] = '0'
+            data['sell'] = '0'
+            data['currency'] = currency1
     print('Текущие курсы валюты ' + currency1 + ' - покупка: ' + str(data['buy']) + ' продажа:' + str(data['sell']))
     save_price(data)
     return data
@@ -50,20 +60,20 @@ def buy_click(total_price=0.10000001, price=0, quantity=0.0001):
     price = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/div[4]/div/input')
     save_json('buy', currency1, quantity.get_attribute('value'), price.get_attribute('value'))
 
-    # button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/input[3]')
-    # button.click()
+    button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/input[3]')
+    button.click()
     time.sleep(5)
     check = check_order()
     while not check:
         buy_click()
         check = check_order()
-    print("Куплено!")
+    print("Куплено! \nПо цене: " + price.get_attribute('value'))
 
 
 def sell_click(quantity=0, price=0):
     driver.get("https://www.yobit.net/ru/trade/" + currency1.upper() + "/" + currency2.upper())
     time.sleep(1)
-    quantity = get_current_balance(currency1) - 1
+    quantity = get_current_balance(currency1) - 200
     quantity_input = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/div[3]/div/input')
     quantity_input.send_keys(Keys.BACKSPACE*10, str(quantity))
     # price_input = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/div[4]/div/input')
@@ -74,14 +84,14 @@ def sell_click(quantity=0, price=0):
     price = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/div[4]/div/input')
     save_json('sell', currency1, quantity.get_attribute('value'), price.get_attribute('value'))
 
-    # button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/input[3]')
-    # button.click()
+    button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/input[3]')
+    button.click()
     time.sleep(5)
     check = check_order()
     while not check:
         sell_click()
         check = check_order()
-    print("Продано!")
+    print("Продано! \nПо цене: " + price.get_attribute('value'))
 
 
 def check_order():
@@ -153,14 +163,14 @@ def save_price(price):
 
 def start_broker():
     print("Старт брокера...")
-    if get_current_balance(currency1) == 1:
+    if get_current_balance(currency1) == 200:
         buy_click()
     buy_list = load_json('buy')
-    current_balance = get_current_balance(currency1) - 1
+    current_balance = get_current_balance(currency1) - 200
     num_of_deal = 1
     buy_history = float(buy_list[len(buy_list) - num_of_deal]['quantity'])
     average_price = float(buy_list[len(buy_list) - num_of_deal]['price'])
-    while current_balance != buy_history:
+    while int(current_balance) != int(buy_history):
         num_of_deal += 1
         buy_history += float(buy_list[len(buy_list) - num_of_deal]['quantity'])
         average_price = (average_price + float(buy_list[len(buy_list) - num_of_deal]['price']))/2
@@ -180,8 +190,7 @@ def start_broker():
             buy_list = load_json('buy')
             num_of_deal += 1
             average_price = (average_price + float(buy_list[len(buy_list) - 1]['price']))/2
-            print(average_price)
-    if get_current_balance(currency1) != 209.24881774: # Изменить потом на 1
+    if get_current_balance(currency1) != 200:
         while sell_price < average_price:
             sell_price = get_price()['sell']
             time.sleep(6)

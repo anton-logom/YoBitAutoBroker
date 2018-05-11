@@ -42,16 +42,18 @@ def insert_into_buy(lst_put, conn):
     lastdb = c.rowcount
     if lastdb:
         lst_put = lst_put[lastdb + 1:]
+    print('ластдб' + str(lastdb))
+    print(lst_put)
     c.close()
     c = conn.cursor()
     try:
         c.executemany("""
                 INSERT INTO operations (`currency`, `action`, `time`, `price`, `quantity`) VALUES (%(currency)s, 'buy', %(time)s, %(price)s, %(quantity)s)
                 """, lst_put)
-        print(str(c.rowcount) + " новых покупок добавлено в БД")
+        print("Информация о покупке добавлена в БД")
 
     except MySQLdb.DatabaseError:
-        print('Проблема при записи в БД: покупок не записаны')
+        print('Проблема при записи в БД: покупки не записаны')
     c.close()
 
 
@@ -67,7 +69,7 @@ def insert_into_prices(lst_put, conn):
         c.executemany("""
         INSERT INTO price (`time`, `currency`, `buy`, `sell`) VALUES (%(time)s, %(currency)s, %(buy)s, %(sell)s)
         """, lst_put)
-        print(str(c.rowcount) + " новых данных о курсе добавлено в БД")
+        print("Информация о курсе добавлена в БД")
     except MySQLdb.DatabaseError:
         print('Проблема при записи в БД: курсы валют не записаны')
     c.close()
@@ -86,7 +88,7 @@ def insert_into_sell(lst_put, conn):
         c.executemany("""
             INSERT INTO operations (`currency`, `action`, `time`, `price`, `quantity`) VALUES (%(currency)s, 'sell', %(time)s, %(price)s, %(quantity)s)
             """, lst_put)
-        print(str(c.rowcount) + " новых продаж добавлено в БД")
+        print("Информация о продаже добавлена в БД")
 
     except MySQLdb.DatabaseError:
         print('Проблема при записи в БД: продажи не записаны')
