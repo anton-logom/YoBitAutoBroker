@@ -9,7 +9,7 @@ options = webdriver.ChromeOptions()
 # НАСТРОЙКИ
 currency1 = 'liza'  # валюта, которую будем покупать и продавать
 currency2 = 'usd'   # исходная валюта для вложений в первую валюту (обычно usd)
-action = 1          # Режим работы: 1 = постоянная автоматическая, 0 = ручное включение каждой итерации
+action = 0          # Режим работы: 1 = постоянная автоматическая, 0 = ручное включение каждой итерации
 
 # Windows
 # chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
@@ -55,13 +55,14 @@ def buy_click(total_price=0.10000001, price=0, quantity=0.0001):
     total_price_input = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/div[5]/div/input')
     total_price_input.send_keys(Keys.BACKSPACE * 10, str(total_price))
 
-    time.sleep(1)
+    # time.sleep(1)
     quantity = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/div[3]/div/input')
     price = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/div[4]/div/input')
     save_json('buy', currency1, quantity.get_attribute('value'), price.get_attribute('value'))
 
     button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/input[3]')
-    button.click()
+    # button.click()
+
     time.sleep(5)
     check = check_order()
     while not check:
@@ -79,13 +80,14 @@ def sell_click(quantity=0, price=0):
     # price_input = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/div[4]/div/input')
     # price_input.send_keys(Keys.BACKSPACE*10, str(price))
 
-    time.sleep(1)
+    # time.sleep(1)
     quantity = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/div[3]/div/input')
     price = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/div[4]/div/input')
     save_json('sell', currency1, quantity.get_attribute('value'), price.get_attribute('value'))
 
     button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/input[3]')
-    button.click()
+    # button.click()
+
     time.sleep(5)
     check = check_order()
     while not check:
@@ -106,7 +108,7 @@ def check_order():
         my_orders = my_orders.to_list()
         for order in my_orders:
             driver.find_element_by_xpath('//*[@id="' + order +'"]/td[4]/table/tbody/tr/td[2]/a').click()
-        print("Ордер был удален. Повторите.")
+        print("Ордер был удален. Повтор.")
         return False
 
 
@@ -170,15 +172,19 @@ def start_broker():
     num_of_deal = 1
     buy_history = float(buy_list[len(buy_list) - num_of_deal]['quantity'])
     average_price = float(buy_list[len(buy_list) - num_of_deal]['price'])
+    average_price += round(average_price * 0.002, 8) # Комиссия 0.2%
     while int(current_balance) != int(buy_history):
         num_of_deal += 1
         buy_history += float(buy_list[len(buy_list) - num_of_deal]['quantity'])
         average_price = (average_price + float(buy_list[len(buy_list) - num_of_deal]['price']))/2
+        average_price += round(average_price * 0.002, 8) # Комиссия 0.2%
     sell_price = get_price()['sell']
+    sell_price -= round(sell_price * 0.002, 8)
     while num_of_deal < 5:
         start_check_price_time = time.time()
         while sell_price < average_price:
             sell_price = get_price()['sell']
+            sell_price -= round(sell_price * 0.002, 8)
             time.sleep(6)
             if (time.time() - start_check_price_time) > 59:
                 break
@@ -190,9 +196,11 @@ def start_broker():
             buy_list = load_json('buy')
             num_of_deal += 1
             average_price = (average_price + float(buy_list[len(buy_list) - 1]['price']))/2
+            average_price += round(average_price * 0.002, 8)
     if get_current_balance(currency1) != 200:
         while sell_price < average_price:
             sell_price = get_price()['sell']
+            sell_price -= round(sell_price * 0.002, 8)
             time.sleep(6)
         sell_click()
 

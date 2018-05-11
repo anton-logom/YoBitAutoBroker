@@ -41,9 +41,7 @@ def insert_into_buy(lst_put, conn):
     c.execute("SELECT `id` FROM `operations` WHERE `action` = 'buy'")
     lastdb = c.rowcount
     if lastdb:
-        lst_put = lst_put[lastdb + 1:]
-    print('ластдб' + str(lastdb))
-    print(lst_put)
+        lst_put = lst_put[lastdb:]
     c.close()
     c = conn.cursor()
     try:
@@ -62,7 +60,7 @@ def insert_into_prices(lst_put, conn):
     c.execute('SELECT max(`id`) FROM price')
     lastdb = c.fetchone()[0]
     if lastdb:
-        lst_put = lst_put[lastdb + 1:]
+        lst_put = lst_put[lastdb:]
     c.close()
     c = conn.cursor()
     try:
@@ -81,7 +79,7 @@ def insert_into_sell(lst_put, conn):
     c.execute("SELECT `id` FROM `operations` WHERE `action` = 'sell'")
     lastdb = c.rowcount
     if lastdb:
-        lst_put = lst_put[lastdb + 1:]
+        lst_put = lst_put[lastdb:]
     c.close()
     c = conn.cursor()
     try:
