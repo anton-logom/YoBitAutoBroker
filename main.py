@@ -55,20 +55,22 @@ def buy_click(total_price=0.10000001, price=0, quantity=0.0001):
     total_price_input = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/div[5]/div/input')
     total_price_input.send_keys(Keys.BACKSPACE * 10, str(total_price))
 
-    # time.sleep(1)
+    time.sleep(0.5)
     quantity = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/div[3]/div/input')
     price = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/div[4]/div/input')
-    save_json('buy', currency1, quantity.get_attribute('value'), price.get_attribute('value'))
+    temp_quantity = quantity.get_attribute('value')
+    temp_price = price.get_attribute('value')
+    save_json('buy', currency1, temp_quantity, temp_price)
 
     button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[2]/div[1]/div/input[3]')
-    # button.click()
+    button.click()
 
     time.sleep(5)
     check = check_order()
     while not check:
         buy_click()
         check = check_order()
-    print("Куплено! \nПо цене: " + price.get_attribute('value'))
+    print("Куплено! \nПо цене: " + temp_price)
 
 
 def sell_click(quantity=0, price=0):
@@ -80,20 +82,30 @@ def sell_click(quantity=0, price=0):
     # price_input = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/div[4]/div/input')
     # price_input.send_keys(Keys.BACKSPACE*10, str(price))
 
-    # time.sleep(1)
+    time.sleep(0.5)
     quantity = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/div[3]/div/input')
     price = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/div[4]/div/input')
-    save_json('sell', currency1, quantity.get_attribute('value'), price.get_attribute('value'))
+    temp_quantity = quantity.get_attribute('value')
+    temp_price = price.get_attribute('value')
+    save_json('sell', currency1, temp_quantity, temp_price)
 
-    button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/input[3]')
-    # button.click()
+    last_price = load_json('price')
+    last_price = last_price[len(last_price)-1]
+    last_price = last_price['sell']
 
-    time.sleep(5)
-    check = check_order()
-    while not check:
-        sell_click()
+    if last_price != float(temp_price):
+        print('Цена успела измениться. Брокер продолжает работу.')
+        start_broker()
+    else:
+        button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/input[3]')
+        button.click()
+
+        time.sleep(5)
         check = check_order()
-    print("Продано! \nПо цене: " + price.get_attribute('value'))
+        while not check:
+            sell_click()
+            check = check_order()
+        print("Продано! \nПо цене: " + temp_price)
 
 
 def check_order():
