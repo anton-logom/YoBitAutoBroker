@@ -7,19 +7,20 @@ from py_linq import Enumerable
 options = webdriver.ChromeOptions()
 
 # НАСТРОЙКИ
-currency1 = 'fto'  # валюта, которую будем покупать и продавать
+currency1 = 'liza'  # валюта, которую будем покупать и продавать
 currency2 = 'usd'   # исходная валюта для вложений в первую валюту (обычно usd)
 action = 1          # Режим работы: 1 = постоянная автоматическая, 0 = ручное включение каждой итерации
 
-# Windows
-# chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
-# profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
-# options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
 
-# MacOS
-chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"  # путь до драйвера Chrome
-chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"  # Директория кэша Chrome
-options.add_argument(chrome_cache_path)
+# для работы под Windows
+chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
+profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
+options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
+
+# для работы под MacOS
+# chrome_driver_path = "chromedriver"  # путь до драйвера Chrome
+# chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"  # Директория кэша Chrome
+# options.add_argument(chrome_cache_path)
 
 
 def get_price():
@@ -65,10 +66,10 @@ def buy_click(total_price=0.10000100, price=0, quantity=0.0001):
         temp_quantity = quantity.get_attribute('value')
         temp_price = price.get_attribute('value')
         save_json('buy', currency1, temp_quantity, temp_price)
+        print("Куплено! \nПо цене: " + temp_price)
     else:
-        print("Ордер не прошел. Повторяем.")
+        print("Ордер не прошел. Повторяем...")
         start_broker()
-    print("Куплено! \nПо цене: " + temp_price)
 
 
 def sell_click(quantity=0, price=0):
@@ -85,13 +86,13 @@ def sell_click(quantity=0, price=0):
     temp_price = price.get_attribute('value')
 
     last_price = load_json('price')
-    last_price = last_price[len(last_price)-1]
+    last_price = last_price[len(last_price)-3]
     last_price = last_price['sell']
 
     if last_price != float(temp_price):
-        print('Цена успела измениться. Брокер продолжает работу.')
+        print('Цена успела измениться. Брокер продолжает работу...')
         start_broker()
-    elif quantity == 0:
+    elif quantity < 0.1100001:
         start_broker()
     else:
         button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/input[3]')
@@ -105,7 +106,7 @@ def sell_click(quantity=0, price=0):
             temp_quantity = quantity.get_attribute('value')
             save_json('sell', currency1, temp_quantity, temp_price)
         else:
-            print("Ордер не прошел. Повторяем.")
+            print("Ордер не прошел. Повторяем...")
             start_broker()
         print("Продано! \nПо цене: " + temp_price)
 
@@ -114,7 +115,7 @@ def check_order():
     my_orders = driver.find_element_by_id('myord_table')
     my_orders = my_orders.find_elements_by_class_name('green') + my_orders.find_elements_by_class_name('red')
     if len(my_orders) == 0:
-        print("Ордер прошел успешно.")
+        print("Ордер прошел успешно!")
         return True
     else:
         my_orders = Enumerable(my_orders)
@@ -122,7 +123,7 @@ def check_order():
         my_orders = my_orders.to_list()
         for order in my_orders:
             driver.find_element_by_xpath('//*[@id="' + order + '"]/td[4]/table/tbody/tr/td[2]/a').click()
-        print("Ордер был удален. Повтор.")
+        print("Ордер был удален. Повтор...")
         return False
 
 
@@ -184,16 +185,21 @@ def start_broker():
     buy_list = load_json('buy')
     current_balance = get_current_balance(currency1)  # - 200
     num_of_deal = 1
-    buy_history = float(buy_list[len(buy_list) - num_of_deal]['quantity'])
-    average_price = float(buy_list[len(buy_list) - num_of_deal]['price'])
-    average_price += round(average_price * 0.002, 8)  # Комиссия 0.2%
-    average_price = round(average_price, 8)
-    while round(current_balance, 3) != round(buy_history, 3):
-        num_of_deal += 1
-        buy_history += float(buy_list[len(buy_list) - num_of_deal]['quantity'])
-        average_price = (average_price + float(buy_list[len(buy_list) - num_of_deal]['price']))/2
+    try:
+        buy_history = float(buy_list[len(buy_list) - num_of_deal]['quantity'])
+        average_price = float(buy_list[len(buy_list) - num_of_deal]['price'])
         average_price += round(average_price * 0.002, 8)  # Комиссия 0.2%
         average_price = round(average_price, 8)
+        while round(current_balance, 3) != round(buy_history, 3):
+            num_of_deal += 1
+            if buy_list[len(buy_list) - num_of_deal]['currency'] == currency1:
+                buy_history += float(buy_list[len(buy_list) - num_of_deal]['quantity'])
+                average_price = (average_price + float(buy_list[len(buy_list) - num_of_deal]['price']))/2
+                average_price += round(average_price * 0.002, 8)  # Комиссия 0.2%
+                average_price = round(average_price, 8)
+    except Exception:
+        num_of_deal = 1
+        average_price = 0
     sell_price = get_price()['sell']
     sell_price -= round(sell_price * 0.002, 8)  # Комиссия 0.2%
     sell_price = round(sell_price, 8)
@@ -216,7 +222,7 @@ def start_broker():
             average_price = (average_price + float(buy_list[len(buy_list) - 1]['price']))/2
             average_price += round(average_price * 0.002, 8)  # Комиссия 0.2%
             average_price = round(average_price, 8)
-    if get_current_balance(currency1) != 0:  # - баланс
+    if get_current_balance(currency1) < 0.1100001:  # - аланс
         while sell_price < average_price:
             sell_price = get_price()['sell']
             sell_price -= round(sell_price * 0.002, 8)  # Комиссия 0.2%
@@ -244,4 +250,4 @@ if __name__ == '__main__':
         start_broker()
     driver.close()
     print("Работа окончена.")
-    # input()
+    time.sleep(2)
