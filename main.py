@@ -91,6 +91,8 @@ def sell_click(quantity=0, price=0):
     if last_price != float(temp_price):
         print('Цена успела измениться. Брокер продолжает работу.')
         start_broker()
+    elif quantity == 0:
+        start_broker()
     else:
         button = driver.find_element_by_xpath('//*[@id="data-pjax-container"]/div[3]/div[1]/div/input[3]')
         button.click()
